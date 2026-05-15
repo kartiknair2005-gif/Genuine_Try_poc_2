@@ -1,0 +1,70 @@
+name: 'Chained E2E (lab)'
+
+on:
+  workflow_run:
+    workflows: ['Trigger E2E (lab)']
+    types: ['completed']
+  workflow_dispatch:
+    inputs:
+      repo_name: { description: 'owner/repo', required: true, type: 'string' }
+      head_sha:  { description: 'sha/ref',    required: true, type: 'string' }
+
+permissions:
+  contents: 'read'
+  actions:  'read'
+
+jobs:
+  parse_run_context:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      repository: '${{ steps.out.outputs.repo_name }}'
+      sha:        '${{ steps.out.outputs.head_sha }}'
+    steps:
+      - name: 'Download artifact (workflow_run path)'
+        if: "github.event_name == 'workflow_run'"
+        uses: 'actions/download-artifact@v4'
+        with:
+          name: 'repo_name'
+          run-id: '${{ github.event.workflow_run.id }}'
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          path: '${{ runner.temp }}/artifacts'
+      - name: 'Parse'
+        id: 'out'
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            REPO_NAME=$(cat "${{ runner.temp }}/artifacts/repo_name" | tr -d '[:space:]')
+            HEAD_SHA=$(cat  "${{ runner.temp }}/artifacts/head_sha"  | tr -d '[:space:]')
+          else
+            REPO_NAME="${{ github.event.inputs.repo_name }}"
+            HEAD_SHA="${{ github.event.inputs.head_sha }}"
+          fi
+          echo "repo_name=${REPO_NAME}" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${HEAD_SHA}"   >> "$GITHUB_OUTPUT"
+          echo "::notice::Will checkout ${REPO_NAME}@${HEAD_SHA}"
+
+  e2e:
+    needs: 'parse_run_context'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout attacker-controlled ref'
+        uses: 'actions/checkout@v5'
+        with:
+          repository: '${{ needs.parse_run_context.outputs.repository }}'
+          ref:        '${{ needs.parse_run_context.outputs.sha }}'
+          persist-credentials: false
+      - name: 'Show what we checked out'
+        run: |
+          echo "Repository contents:"
+          ls -la
+          echo "---"
+          echo "package.json:"
+          cat package.json 2>/dev/null || echo "no package.json"
+      - name: 'Run untrusted build with secret in env'
+        env:
+          FAKE_SECRET: '${{ secrets.FAKE_SECRET }}'
+        run: |
+          if [ -f package.json ]; then
+            npm install --ignore-scripts=false || true
+          else
+            echo "no package.json"
+          fi
