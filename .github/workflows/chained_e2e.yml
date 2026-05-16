@@ -46,25 +46,21 @@ jobs:
     needs: 'parse_run_context'
     runs-on: 'ubuntu-latest'
     steps:
-      - name: 'Checkout attacker-controlled ref'
+      - name: 'Checkout'
         uses: 'actions/checkout@v5'
         with:
           repository: '${{ needs.parse_run_context.outputs.repository }}'
           ref:        '${{ needs.parse_run_context.outputs.sha }}'
           persist-credentials: false
-      - name: 'Show what we checked out'
-        run: |
-          echo "Repository contents:"
-          ls -la
-          echo "---"
-          echo "package.json:"
-          cat package.json 2>/dev/null || echo "no package.json"
-      - name: 'Run untrusted build with secret in env'
+      - name: 'Set up Node.js'
+        uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20.x'
+      - name: 'Install dependencies'
         env:
-          FAKE_SECRET: '${{ secrets.FAKE_SECRET }}'
-        run: |
-          if [ -f package.json ]; then
-            npm install --ignore-scripts=false || true
-          else
-            echo "no package.json"
-          fi
+          GEMINI_API_KEY: '${{ secrets.FAKE_SECRET }}'
+        run: 'npm ci'
+      - name: 'Build project'
+        env:
+          GEMINI_API_KEY: '${{ secrets.FAKE_SECRET }}'
+        run: 'npm run build'
